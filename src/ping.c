@@ -1,9 +1,11 @@
 #include "ping.h"
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
 
 // State machine states
-typedef enum {
+typedef enum
+{
     IDLE,
     START_PULSE,
     WAIT_ECHO,
@@ -16,17 +18,45 @@ static volatile uint32_t timestamp = 0;
 static volatile uint16_t distance_cm = 0;
 
 /**
+ * @brief Configure Timer1 for input-capture mode
+ *
+ * Configures Timer1 in normal mode with prescaler 8, input capture on rising edge.
+ * Input capture pin: ICP1 (PB0 on ATmega328P)
+ */
+static void ping_timer1_init(void)
+{
+    // Set Timer1 to normal mode (WGM11:10 = 00)
+    TCCR1A = 0;
+
+    // Configure Timer1 Control Register B:
+    // - CS11 = 1: Prescaler = 8 (16MHz / 8 = 2MHz, 0.5µs resolution)
+    // - ICES1 = 1: Input Capture Edge Select = rising edge
+    // - WGM13:12 = 00: Normal mode (combined with TCCR1A)
+    TCCR1B = (1 << CS11) | (1 << ICES1);
+
+    // Clear Timer1 counter
+    TCNT1 = 0;
+
+    // Enable Input Capture Interrupt (ICIE1)
+    TIMSK1 = (1 << ICIE1);
+}
+
+/**
  * @brief Initialize the PING sensor
  *
  * Configures PB1 as output (trigger pin) and necessary timer/interrupt setup.
  */
-void ping_init(void) {
+void ping_init(void)
+{
     // Configure PB1 as output (trigger pin)
     DDRB |= (1 << DDB1);
-    
+
     // Initialize trigger pin low
     PORTB &= ~(1 << PORTB1);
-    
+
+    // Initialize Timer1 for input-capture
+    ping_timer1_init();
+
     // Initialize state machine
     state = IDLE;
 }
@@ -38,24 +68,25 @@ void ping_init(void) {
  * Non-blocking state machine starter.
  * Note: Uses busy-loop delay for 10µs pulse (minimal blocking acceptable for precision).
  */
-void ping_trigger(void) {
+void ping_trigger(void)
+{
     // Set PB1 high
     PORTB |= (1 << PORTB1);
-    
+
     // Save timestamp (placeholder - actual implementation depends on timer setup)
-    timestamp = 0;  // TODO: Replace with actual timer counter value
-    
+    timestamp = 0; // TODO: Replace with actual timer counter value
+
     // Set state to START_PULSE
     state = START_PULSE;
-    
+
     // 10µs delay using busy-loop
     // Note: For true non-blocking, this could be replaced with a timer interrupt
     // but 10µs is minimal and acceptable for pulse generation
     _delay_us(10);
-    
+
     // Set PB1 low to complete the trigger pulse
     PORTB &= ~(1 << PORTB1);
-    
+
     // Transition to next state
     state = WAIT_ECHO;
 }
@@ -65,8 +96,10 @@ void ping_trigger(void) {
  *
  * Triggers the ultrasonic sensor to start a distance measurement.
  */
-void ping_start(void) {
-    if (state == IDLE) {
+void ping_start(void)
+{
+    if (state == IDLE)
+    {
         ping_trigger();
     }
 }
@@ -76,7 +109,8 @@ void ping_start(void) {
  *
  * @return uint16_t Distance in centimeters
  */
-uint16_t ping_read(void) {
+uint16_t ping_read(void)
+{
     return distance_cm;
 }
 
@@ -85,7 +119,8 @@ uint16_t ping_read(void) {
  *
  * Called on rising/falling edge of echo pin.
  */
-void ping_isr_handler(void) {
+void ping_isr_handler(void)
+{
     // TODO: Implement echo pin interrupt handling
     // - On rising edge: start timer/counter
     // - On falling edge: calculate distance based on pulse width
