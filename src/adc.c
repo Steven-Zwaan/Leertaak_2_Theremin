@@ -89,10 +89,10 @@ void adc_isr_handler(void)
 {
     // In 8-bit left-adjusted mode, read only ADCH
     uint8_t val = ADCH;
-    
+
     // Store value in volatile buffer
     adc_value = val;
-    
+
     // Call registered callback if available (VolumeRegelaar API)
     if (adc_callback != NULL)
     {
