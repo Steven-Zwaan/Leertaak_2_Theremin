@@ -21,6 +21,7 @@ typedef struct
 // Filter buffer and state
 static filter_item filter_buffer[MAX_FILTER_SIZE];
 static uint8_t current_size = 0;
+static uint8_t max_size = MAX_FILTER_SIZE; // Runtime configurable max size
 
 /**
  * @brief Initialize the filter
@@ -58,7 +59,7 @@ static void filter_add(uint16_t val)
         filter_buffer[i].age++;
     }
 
-    if (current_size < MAX_FILTER_SIZE)
+    if (current_size < max_size)
     {
         // Buffer not full: add new element at the end
         filter_buffer[current_size].age = 0;
@@ -71,7 +72,7 @@ static void filter_add(uint16_t val)
         uint8_t oldest_index = 0;
         uint8_t max_age = filter_buffer[0].age;
 
-        for (uint8_t i = 1; i < MAX_FILTER_SIZE; i++)
+        for (uint8_t i = 1; i < current_size; i++)
         {
             if (filter_buffer[i].age > max_age)
             {
@@ -160,6 +161,71 @@ uint16_t filter_read(void)
 {
     // TODO: Implement filtered value read
     return 0;
+}
+
+/**
+ * @brief Set the maximum filter size
+ *
+ * Sets the runtime configurable maximum size of the filter buffer.
+ * If the new size is smaller than current_size, removes the oldest items.
+ * Size is clamped to valid range [1, MAX_FILTER_SIZE].
+ *
+ * @param n The desired maximum filter size (1-15)
+ */
+void filter_set_size(uint8_t n)
+{
+    // Clamp to valid bounds [1, MAX_FILTER_SIZE]
+    if (n < 1)
+    {
+        n = 1;
+    }
+    if (n > MAX_FILTER_SIZE)
+    {
+        n = MAX_FILTER_SIZE;
+    }
+
+    max_size = n;
+
+    // If new size is smaller than current size, remove oldest items
+    if (current_size > max_size)
+    {
+        // Remove items with highest age until we fit in the new size
+        while (current_size > max_size)
+        {
+            // Find oldest item
+            uint8_t oldest_index = 0;
+            uint8_t max_age = filter_buffer[0].age;
+
+            for (uint8_t i = 1; i < current_size; i++)
+            {
+                if (filter_buffer[i].age > max_age)
+                {
+                    max_age = filter_buffer[i].age;
+                    oldest_index = i;
+                }
+            }
+
+            // Remove oldest item by shifting remaining items
+            for (uint8_t i = oldest_index; i < current_size - 1; i++)
+            {
+                filter_buffer[i] = filter_buffer[i + 1];
+            }
+
+            current_size--;
+        }
+    }
+}
+
+/**
+ * @brief Get the current maximum filter size
+ *
+ * Returns the runtime configured maximum size of the filter buffer.
+ *
+ * @return uint8_t The current maximum filter size (1-15)
+ */
+uint8_t filter_get_size(void)
+{
+    return max_size;
 }
 
 /**
