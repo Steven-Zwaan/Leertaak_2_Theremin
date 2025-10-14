@@ -5,6 +5,9 @@
 // Global variable to store the last ADC reading
 static volatile uint16_t adc_value = 0;
 
+// Callback function pointer for VolumeRegelaar API
+static volatile adc_callback_t adc_callback = NULL;
+
 /**
  * @brief Initialize the ADC peripheral in freerunning mode
  *
@@ -67,6 +70,16 @@ uint16_t adc_read(void)
 }
 
 /**
+ * @brief Register a callback function for ADC conversions
+ *
+ * @param callback Pointer to callback function
+ */
+void adc_set_callback(adc_callback_t callback)
+{
+    adc_callback = callback;
+}
+
+/**
  * @brief ADC conversion complete ISR hook
  *
  * This function is called from the ADC interrupt service routine
@@ -75,13 +88,23 @@ uint16_t adc_read(void)
 void adc_isr_handler(void)
 {
     // In 8-bit left-adjusted mode, read only ADCH
-    adc_value = ADCH;
+    uint8_t val = ADCH;
+
+    // Store value in volatile buffer
+    adc_value = val;
+
+    // Call registered callback if available (VolumeRegelaar API)
+    if (adc_callback != NULL)
+    {
+        adc_callback(val);
+    }
 }
 
 /**
  * @brief ADC Conversion Complete Interrupt Service Routine
  *
- * This ISR is automatically called when ADC conversion completes
+ * This ISR is automatically called when ADC conversion completes.
+ * Reads ADCH and calls the registered callback with minimal processing.
  */
 ISR(ADC_vect)
 {

@@ -35,4 +35,20 @@ uint16_t adc_read(void);
  */
 void adc_isr_handler(void);
 
+/**
+ * @brief Callback function type for ADC conversions
+ *
+ * @param value The ADC conversion result (0-255 in 8-bit mode)
+ * This callback is invoked from the ADC ISR with the converted value.
+ */
+typedef void (*adc_callback_t)(uint8_t value);
+
+/**
+ * @brief Register a callback function for ADC conversions
+ *
+ * @param callback Pointer to callback function to be called when ADC conversion completes
+ * The callback will be invoked from the ISR context, so it should be kept minimal.
+ */
+void adc_set_callback(adc_callback_t callback);
+
 #endif // ADC_H
