@@ -27,6 +27,14 @@ void ping_start(void);
 uint16_t ping_read(void);
 
 /**
+ * @brief Get the last computed frequency
+ *
+ * @return uint16_t Frequency in Hz (230-1400 Hz range)
+ * Returns the frequency calculated from the most recent distance measurement.
+ */
+uint16_t ping_get_frequency(void);
+
+/**
  * @brief PING echo ISR hook
  *
  * Called on rising/falling edge of echo pin.
