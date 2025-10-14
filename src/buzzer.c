@@ -8,6 +8,9 @@
 // Current frequency variable
 static volatile uint16_t current_frequency = 0;
 
+// Toggle state for tone generation (gating PWM on/off)
+static volatile uint8_t tone_output_enabled = 0;
+
 /**
  * @brief Initialize Timer2 for Fast PWM
  *
@@ -170,6 +173,40 @@ void buzzer_set_volume_duty(uint8_t duty)
 void buzzer_isr_handler(void)
 {
     // TODO: Implement if needed for advanced control
+}
+
+/**
+ * @brief Timer0 Compare Match A ISR
+ *
+ * Toggles the PWM output enable/disable to create the tone frequency.
+ * This ISR is called every half-period of the desired tone.
+ * By gating the PWM on and off, we create an audible tone at the frequency
+ * determined by OCR0A while maintaining volume control via PWM duty cycle.
+ *
+ * The toggle is implemented by manipulating the COM2B1 bit in TCCR2A:
+ * - COM2B1 = 1: OC2B connected (PWM output enabled)
+ * - COM2B1 = 0: OC2B disconnected (PWM output disabled)
+ */
+ISR(TIMER0_COMPA_vect)
+{
+    // Toggle the output enable state
+    tone_output_enabled = !tone_output_enabled;
+
+    if (tone_output_enabled)
+    {
+        // Enable OC2B output by setting COM2B1 bit
+        // This connects the PWM to the output pin
+        TCCR2A |= (1 << COM2B1);
+    }
+    else
+    {
+        // Disable OC2B output by clearing COM2B1 bit
+        // This disconnects the PWM from the output pin
+        TCCR2A &= ~(1 << COM2B1);
+
+        // Optionally set pin low when disabled for cleaner output
+        PORTD &= ~(1 << BUZZER_PIN);
+    }
 }
 
 /**
