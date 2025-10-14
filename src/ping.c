@@ -22,6 +22,9 @@ static volatile uint16_t icr1_start = 0;        // Rising edge timestamp
 static volatile uint16_t icr1_stop = 0;         // Falling edge timestamp
 static volatile uint8_t ping_measure_ready = 0; // Measurement complete flag
 
+// Frequency output variable
+static volatile uint16_t frequency_hz = 0; // Last computed frequency in Hz
+
 /**
  * @brief Configure Timer1 for input-capture mode
  *
@@ -182,6 +185,19 @@ static uint16_t map_distance_to_freq(uint16_t dist_cm)
 uint16_t ping_read(void)
 {
     return distance_cm;
+}
+
+/**
+ * @brief Get the last computed frequency
+ *
+ * Returns the frequency calculated from the most recent distance measurement.
+ * The frequency is mapped from distance using the theremin mapping function.
+ *
+ * @return uint16_t Frequency in Hz (230-1400 Hz range)
+ */
+uint16_t ping_get_frequency(void)
+{
+    return frequency_hz;
 }
 
 /**
