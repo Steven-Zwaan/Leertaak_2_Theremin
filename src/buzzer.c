@@ -5,6 +5,15 @@
 // PWM pin definition
 #define BUZZER_PIN PD3 // OC2B (Timer2 Channel B)
 
+// Timer0 frequency calculation constants
+#define F_CPU 16000000UL // 16MHz CPU clock
+#define TIMER0_PRESCALER 256
+#define TIMER0_FREQ_CONSTANT (F_CPU / (2UL * TIMER0_PRESCALER)) // 31250 Hz
+
+// Frequency limits for Timer0 with prescaler 256
+#define MIN_FREQUENCY 122   // OCR0A = 255 → ~122 Hz
+#define MAX_FREQUENCY 15625 // OCR0A = 0 → ~31250 Hz (theoretical max)
+
 // Current frequency variable
 static volatile uint16_t current_frequency = 0;
 
@@ -162,6 +171,59 @@ void buzzer_set_volume_duty(uint8_t duty)
     // Update OCR2B register with new duty cycle
     // OCR2B is 8-bit, so atomic access is inherent (single instruction)
     OCR2B = duty;
+}
+
+/**
+ * @brief Set buzzer frequency
+ *
+ * Calculates and sets the OCR0A value to generate the desired tone frequency.
+ * Uses Timer0 in CTC mode with prescaler 256.
+ *
+ * Formula: OCR0A = (F_CPU / (2 × prescaler × frequency)) - 1
+ * With F_CPU = 16MHz, prescaler = 256:
+ * OCR0A = (31250 / frequency) - 1
+ *
+ * @param freq_hz Desired frequency in Hz (122 - 15625 Hz range)
+ *                Frequencies outside this range will be clamped
+ */
+void buzzer_set_frequency(uint16_t freq_hz)
+{
+    uint8_t ocr_value;
+
+    // Clamp frequency to valid range
+    if (freq_hz < MIN_FREQUENCY)
+    {
+        freq_hz = MIN_FREQUENCY;
+    }
+    if (freq_hz > MAX_FREQUENCY)
+    {
+        freq_hz = MAX_FREQUENCY;
+    }
+
+    // Calculate OCR0A value from frequency
+    // OCR0A = (TIMER0_FREQ_CONSTANT / freq_hz) - 1
+    // Ensure result fits in 8-bit register (0-255)
+    uint32_t temp = TIMER0_FREQ_CONSTANT / freq_hz;
+    if (temp > 0)
+    {
+        temp = temp - 1;
+    }
+
+    // Clamp to 8-bit range
+    if (temp > 255)
+    {
+        ocr_value = 255;
+    }
+    else
+    {
+        ocr_value = (uint8_t)temp;
+    }
+
+    // Update OCR0A atomically (8-bit register, single instruction write)
+    OCR0A = ocr_value;
+
+    // Store current frequency
+    current_frequency = freq_hz;
 }
 
 /**
