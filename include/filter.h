@@ -35,4 +35,21 @@ uint16_t filter_read(void);
  */
 void filter_reset(void);
 
+/**
+ * @brief Set the maximum filter size
+ *
+ * @param n The desired maximum filter size (1-15)
+ * Sets the runtime configurable maximum size of the filter buffer.
+ * Size is clamped to valid range [1, 15].
+ */
+void filter_set_size(uint8_t n);
+
+/**
+ * @brief Get the current maximum filter size
+ *
+ * @return uint8_t The current maximum filter size (1-15)
+ * Returns the runtime configured maximum size of the filter buffer.
+ */
+uint8_t filter_get_size(void);
+
 #endif // FILTER_H
