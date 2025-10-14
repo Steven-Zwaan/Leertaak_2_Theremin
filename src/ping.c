@@ -17,6 +17,11 @@ static volatile PingState state = IDLE;
 static volatile uint32_t timestamp = 0;
 static volatile uint16_t distance_cm = 0;
 
+// Input-capture timing variables
+static volatile uint16_t icr1_start = 0;        // Rising edge timestamp
+static volatile uint16_t icr1_stop = 0;         // Falling edge timestamp
+static volatile uint8_t ping_measure_ready = 0; // Measurement complete flag
+
 /**
  * @brief Configure Timer1 for input-capture mode
  *
@@ -124,4 +129,37 @@ void ping_isr_handler(void)
     // TODO: Implement echo pin interrupt handling
     // - On rising edge: start timer/counter
     // - On falling edge: calculate distance based on pulse width
+}
+
+/**
+ * @brief Timer1 Input Capture ISR
+ *
+ * Handles both rising and falling edges of the echo pulse.
+ * - Rising edge: Records start time (ICR1) and toggles to falling edge detection
+ * - Falling edge: Records stop time (ICR1), toggles back to rising edge, sets measurement ready flag
+ */
+ISR(TIMER1_CAPT_vect)
+{
+    // Check current edge detection setting
+    if (TCCR1B & (1 << ICES1))
+    {
+        // Currently detecting rising edge
+        // Record the start timestamp from ICR1
+        icr1_start = ICR1;
+
+        // Toggle ICES1 to detect falling edge next
+        TCCR1B &= ~(1 << ICES1);
+    }
+    else
+    {
+        // Currently detecting falling edge
+        // Record the stop timestamp from ICR1
+        icr1_stop = ICR1;
+
+        // Toggle ICES1 back to detect rising edge
+        TCCR1B |= (1 << ICES1);
+
+        // Set measurement ready flag
+        ping_measure_ready = 1;
+    }
 }
