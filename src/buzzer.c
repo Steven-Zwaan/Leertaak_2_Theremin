@@ -39,6 +39,41 @@ static void pwm_init(void)
 }
 
 /**
+ * @brief Initialize Timer0 for CTC mode (tone generation)
+ *
+ * Configures Timer0 in CTC (Clear Timer on Compare Match) mode for generating
+ * tone frequencies via interrupt-based toggling.
+ * - CTC mode (WGM01 = 1, WGM00 = 0)
+ * - Prescaler 256 (CS02 = 1, CS01 = 0, CS00 = 0)
+ * - OCR0A determines the half-period of the tone frequency
+ * - Compare Match A interrupt enabled (OCIE0A)
+ *
+ * Timer frequency = F_CPU / prescaler / (2 * (OCR0A + 1))
+ * With F_CPU = 16MHz, prescaler = 256:
+ * Timer frequency = 16,000,000 / 256 / (2 * (OCR0A + 1))
+ * Example: OCR0A = 121 → ~512 Hz
+ */
+static void tone_timer0_init(void)
+{
+    // Configure Timer0 Control Register A (TCCR0A)
+    // WGM01 = 1, WGM00 = 0: CTC mode (Clear Timer on Compare Match)
+    // COM0A and COM0B bits = 0: Normal port operation (no output compare pins)
+    TCCR0A = (1 << WGM01);
+
+    // Configure Timer0 Control Register B (TCCR0B)
+    // WGM02 = 0: CTC mode (part 2)
+    // CS02 = 1, CS01 = 0, CS00 = 0: Prescaler = 256 (clk/256)
+    TCCR0B = (1 << CS02);
+
+    // Set initial OCR0A value (determines half-period)
+    // This will be updated based on desired frequency
+    OCR0A = 121; // Example: ~512 Hz tone
+
+    // Enable Timer0 Compare Match A interrupt (OCIE0A)
+    TIMSK0 |= (1 << OCIE0A);
+}
+
+/**
  * @brief Initialize the buzzer
  *
  * Configures the PWM timer and GPIO pin for buzzer control.
@@ -48,6 +83,9 @@ void buzzer_init(void)
 {
     // Initialize PWM for buzzer control
     pwm_init();
+
+    // Initialize Timer0 for tone frequency generation
+    tone_timer0_init();
 
     // Initialize frequency
     current_frequency = 0;
