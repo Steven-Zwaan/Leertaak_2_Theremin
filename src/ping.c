@@ -134,6 +134,47 @@ static uint16_t ping_compute_distance(uint16_t ticks)
 }
 
 /**
+ * @brief Map distance to frequency for theremin
+ *
+ * Maps measured distance to a frequency value using linear interpolation.
+ * Formula: f = fmax - (fmax - fmin) * (distance / distMax)
+ * Closer distance → higher frequency, farther distance → lower frequency
+ *
+ * @param dist_cm Distance in centimeters
+ * @return uint16_t Frequency in Hz (clamped between fmin and fmax)
+ */
+static uint16_t map_distance_to_freq(uint16_t dist_cm)
+{
+    // Define mapping parameters
+    const uint16_t fmin = 230;   // Minimum frequency (Hz) - far distance
+    const uint16_t fmax = 1400;  // Maximum frequency (Hz) - close distance
+    const uint16_t distMax = 65; // Maximum distance for mapping (cm)
+
+    // Clamp distance to maximum
+    if (dist_cm > distMax)
+    {
+        dist_cm = distMax;
+    }
+
+    // Calculate frequency using linear mapping
+    // f = fmax - (fmax - fmin) * (distance / distMax)
+    // Rearranged to avoid floating point: f = fmax - ((fmax - fmin) * distance) / distMax
+    uint16_t frequency = fmax - (((uint32_t)(fmax - fmin) * dist_cm) / distMax);
+
+    // Clamp frequency to valid range
+    if (frequency < fmin)
+    {
+        frequency = fmin;
+    }
+    if (frequency > fmax)
+    {
+        frequency = fmax;
+    }
+
+    return frequency;
+}
+
+/**
  * @brief Read PING distance
  *
  * @return uint16_t Distance in centimeters
