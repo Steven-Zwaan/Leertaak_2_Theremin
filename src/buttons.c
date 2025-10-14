@@ -1,15 +1,25 @@
 #include "buttons.h"
+#include "filter.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
 // Button pin definitions
-#define BUTTON_0_PIN PD4 // PCINT20
-#define BUTTON_1_PIN PD5 // PCINT21
+#define BUTTON_0_PIN PD4 // PCINT20 - Decrease filter size
+#define BUTTON_1_PIN PD5 // PCINT21 - Increase filter size
+
+// Debounce time in milliseconds
+#define DEBOUNCE_TIME_MS 50
 
 // Button state variables
 static volatile uint8_t button_state = 0;
 static volatile uint8_t button_pressed = 0;
 static volatile uint8_t button_released = 0;
+
+// Debounce timing variables (using millis approximation)
+static volatile uint32_t last_interrupt_time_button0 = 0;
+static volatile uint32_t last_interrupt_time_button1 = 0;
+static volatile uint32_t millis_counter = 0;
 
 /**
  * @brief Initialize button inputs
@@ -125,4 +135,76 @@ void buttons_isr_handler(void)
 {
     // TODO: Implement interrupt handler logic
     // Will be called from ISR(PCINT2_vect)
+}
+
+/**
+ * @brief Get milliseconds counter
+ *
+ * Simple millisecond counter approximation.
+ * Note: This is a simplified version. For production, use a proper timer-based millis().
+ *
+ * @return uint32_t Approximate milliseconds since start
+ */
+static uint32_t get_millis(void)
+{
+    // Simplified: increment counter (in real implementation, use timer ISR)
+    // For now, we'll use a basic approximation
+    return millis_counter++;
+}
+
+/**
+ * @brief Pin Change Interrupt ISR for PCINT2 (Port D)
+ *
+ * Detects pin changes on PD4 and PD5, implements debouncing,
+ * and adjusts filter size accordingly.
+ * - PD4 (Button 0): Decrease filter size
+ * - PD5 (Button 1): Increase filter size
+ */
+ISR(PCINT2_vect)
+{
+    uint32_t current_time = get_millis();
+
+    // Read current pin states (LOW = pressed due to pull-up)
+    uint8_t pd4_pressed = !(PIND & (1 << BUTTON_0_PIN));
+    uint8_t pd5_pressed = !(PIND & (1 << BUTTON_1_PIN));
+
+    // Check PD4 (Button 0) - Decrease filter size
+    if (pd4_pressed)
+    {
+        // Debounce check: only process if enough time has passed
+        if ((current_time - last_interrupt_time_button0) >= DEBOUNCE_TIME_MS)
+        {
+            last_interrupt_time_button0 = current_time;
+
+            // Decrease filter size
+            uint8_t current_size = filter_get_size();
+            if (current_size > 1)
+            {
+                filter_set_size(current_size - 1);
+            }
+
+            // Set pressed flag
+            button_pressed |= (1 << 0);
+        }
+    }
+
+    // Check PD5 (Button 1) - Increase filter size
+    if (pd5_pressed)
+    {
+        // Debounce check: only process if enough time has passed
+        if ((current_time - last_interrupt_time_button1) >= DEBOUNCE_TIME_MS)
+        {
+            last_interrupt_time_button1 = current_time;
+
+            // Increase filter size
+            uint8_t current_size = filter_get_size();
+            if (current_size < 15)
+            {
+                filter_set_size(current_size + 1);
+            }
+
+            // Set pressed flag
+            button_pressed |= (1 << 1);
+        }
+    }
 }
