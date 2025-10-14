@@ -110,6 +110,30 @@ void ping_start(void)
 }
 
 /**
+ * @brief Compute distance from timer ticks
+ *
+ * Converts timer ticks to distance in centimeters.
+ * With prescaler 8 at 16MHz: 1 tick = 0.5µs
+ * Sound speed: ~340 m/s → 29µs per cm (round trip: 58µs per cm)
+ *
+ * @param ticks Number of timer ticks (pulse width)
+ * @return uint16_t Distance in centimeters
+ */
+static uint16_t ping_compute_distance(uint16_t ticks)
+{
+    // Convert ticks to microseconds
+    // Prescaler 8 at 16MHz: 1 tick = 0.5µs
+    // Therefore: microseconds = ticks * 0.5 = ticks / 2
+    uint16_t microseconds = ticks / 2;
+
+    // Convert microseconds to centimeters
+    // Sound travels 58µs per cm (round trip)
+    uint16_t distance_cm = microseconds / 58;
+
+    return distance_cm;
+}
+
+/**
  * @brief Read PING distance
  *
  * @return uint16_t Distance in centimeters
