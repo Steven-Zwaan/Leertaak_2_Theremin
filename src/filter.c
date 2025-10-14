@@ -1,5 +1,7 @@
 #include "filter.h"
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Maximum size of the filter buffer
 #define MAX_FILTER_SIZE 15
@@ -82,6 +84,57 @@ static void filter_add(uint16_t val)
         filter_buffer[oldest_index].age = 0;
         filter_buffer[oldest_index].value = val;
     }
+}
+
+/**
+ * @brief Compare function for qsort
+ *
+ * Compares two filter_item structs based on their value field.
+ *
+ * @param a Pointer to first filter_item
+ * @param b Pointer to second filter_item
+ * @return int Negative if a<b, 0 if a==b, positive if a>b
+ */
+static int filter_compare(const void *a, const void *b)
+{
+    const filter_item *item_a = (const filter_item *)a;
+    const filter_item *item_b = (const filter_item *)b;
+
+    // Compare values
+    if (item_a->value < item_b->value)
+        return -1;
+    else if (item_a->value > item_b->value)
+        return 1;
+    else
+        return 0;
+}
+
+/**
+ * @brief Get filtered (median) value from buffer
+ *
+ * Copies the buffer to a temporary array, sorts it by value using qsort,
+ * and returns the median (middle element).
+ *
+ * @return uint16_t The median value, or 0 if buffer is empty
+ */
+static uint16_t filter_get_filtered(void)
+{
+    // Return 0 if buffer is empty
+    if (current_size == 0)
+    {
+        return 0;
+    }
+
+    // Copy buffer to temporary array
+    filter_item temp_buffer[MAX_FILTER_SIZE];
+    memcpy(temp_buffer, filter_buffer, current_size * sizeof(filter_item));
+
+    // Sort the temporary buffer by value
+    qsort(temp_buffer, current_size, sizeof(filter_item), filter_compare);
+
+    // Return the median (middle element)
+    uint8_t median_index = current_size / 2;
+    return temp_buffer[median_index].value;
 }
 
 /**
