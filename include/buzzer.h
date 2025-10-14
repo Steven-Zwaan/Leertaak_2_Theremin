@@ -35,6 +35,24 @@ void buzzer_update(uint16_t frequency);
 void buzzer_stop(void);
 
 /**
+ * @brief Set volume duty cycle
+ *
+ * @param duty Duty cycle value (0-255)
+ * Sets the PWM duty cycle for volume control.
+ * 0 = silent, 255 = maximum volume.
+ */
+void buzzer_set_volume_duty(uint8_t duty);
+
+/**
+ * @brief Set buzzer frequency
+ *
+ * @param freq_hz Desired frequency in Hz (122 - 15625 Hz range)
+ * Calculates and sets the timer value to generate the specified tone frequency.
+ * Frequencies outside the valid range will be clamped.
+ */
+void buzzer_set_frequency(uint16_t freq_hz);
+
+/**
  * @brief Buzzer timer ISR hook
  *
  * Called from the timer overflow interrupt if needed.
