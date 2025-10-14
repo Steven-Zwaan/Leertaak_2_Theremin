@@ -3,7 +3,7 @@
 #include <avr/interrupt.h>
 
 // PWM pin definition
-#define BUZZER_PIN PD3  // OC2B (Timer2 Channel B)
+#define BUZZER_PIN PD3 // OC2B (Timer2 Channel B)
 
 // Current frequency variable
 static volatile uint16_t current_frequency = 0;
@@ -20,20 +20,20 @@ static void pwm_init(void)
 {
     // Configure PD3 (OC2B) as output
     DDRD |= (1 << BUZZER_PIN);
-    
+
     // Configure Timer2 Control Register A (TCCR2A)
     // COM2B1 = 1, COM2B0 = 0: Non-inverting mode on OC2B
     // WGM21 = 1, WGM20 = 1: Fast PWM mode (part 1)
     TCCR2A = (1 << COM2B1) | (1 << WGM21) | (1 << WGM20);
-    
+
     // Configure Timer2 Control Register B (TCCR2B)
     // WGM22 = 0: Fast PWM mode (part 2) - mode 3 (TOP = 0xFF)
     // CS22:0 = 001: No prescaler (clk/1)
     TCCR2B = (1 << CS20);
-    
+
     // Set initial duty cycle to 50% (OCR2B = 128)
     OCR2B = 128;
-    
+
     // Optional: Enable Timer2 overflow interrupt if needed
     // TIMSK2 |= (1 << TOIE2);
 }
@@ -48,10 +48,10 @@ void buzzer_init(void)
 {
     // Initialize PWM for buzzer control
     pwm_init();
-    
+
     // Initialize frequency
     current_frequency = 0;
-    
+
     // Start with buzzer off
     buzzer_stop();
 }
@@ -65,13 +65,13 @@ void buzzer_init(void)
 void buzzer_start(uint16_t frequency)
 {
     current_frequency = frequency;
-    
+
     // Enable PWM output by setting non-inverting mode
     TCCR2A |= (1 << COM2B1);
-    
+
     // Set 50% duty cycle
     OCR2B = 128;
-    
+
     // TODO: Adjust timer frequency based on desired tone frequency
     // This basic implementation uses fixed PWM frequency
 }
@@ -85,7 +85,7 @@ void buzzer_start(uint16_t frequency)
 void buzzer_update(uint16_t frequency)
 {
     current_frequency = frequency;
-    
+
     // TODO: Implement frequency adjustment
     // This may require changing prescaler or using a different approach
     // For accurate frequency generation, consider using Timer1 with CTC mode
@@ -100,11 +100,27 @@ void buzzer_stop(void)
 {
     // Disconnect OC2B from the timer (normal port operation)
     TCCR2A &= ~(1 << COM2B1);
-    
+
     // Set pin low
     PORTD &= ~(1 << BUZZER_PIN);
-    
+
     current_frequency = 0;
+}
+
+/**
+ * @brief Set volume duty cycle
+ *
+ * Sets the PWM duty cycle for volume control by updating OCR2B.
+ * OCR2B is an 8-bit register, so no atomic access is needed.
+ *
+ * @param duty Duty cycle value (0-255)
+ *             0 = 0% duty (silent), 255 = 100% duty (max volume)
+ */
+void buzzer_set_volume_duty(uint8_t duty)
+{
+    // Update OCR2B register with new duty cycle
+    // OCR2B is 8-bit, so atomic access is inherent (single instruction)
+    OCR2B = duty;
 }
 
 /**
