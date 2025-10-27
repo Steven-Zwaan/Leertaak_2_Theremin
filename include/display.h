@@ -21,10 +21,13 @@ void display_start(void);
 /**
  * @brief Update display with new data
  *
- * @param value Value to display (interpretation depends on display type)
- * Updates the display with the provided value.
+ * @param distance Distance in centimeters
+ * @param frequency Frequency in Hz
+ * Updates the display with distance and frequency information.
+ * Line 0: "Dist: xx cm"
+ * Line 1: "Freq: yyyy Hz"
  */
-void display_update(uint16_t value);
+void display_update(uint16_t distance, uint16_t frequency);
 
 /**
  * @brief Clear the display
@@ -40,5 +43,23 @@ void display_clear(void);
  * This function should be called from a timer ISR for displays requiring refresh.
  */
 void display_isr_handler(void);
+
+/**
+ * @brief Display a digit on 7-segment display
+ *
+ * @param value Digit to display (0-9)
+ * Sends the segment pattern for the specified digit to the I2C port expander.
+ * Values > 9 will display 0.
+ */
+void sevenseg_display(uint8_t value);
+
+/**
+ * @brief Display filter size on 7-segment display
+ *
+ * @param size Filter size to display (0-15)
+ * Shows the current filter size. For values > 9, displays the last digit.
+ * Example: 15 shows "5", 10 shows "0".
+ */
+void display_filter_size(uint8_t size);
 
 #endif // DISPLAY_H
