@@ -1,6 +1,7 @@
 #include <unity.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 // Mock filter implementation for testing
 #define MAX_FILTER_SIZE 15

@@ -3,13 +3,16 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <string.h>
+#include <stdio.h>
 
 // I2C/TWI pin definitions
 #define I2C_SDA_PIN PC4 // SDA (Data line)
 #define I2C_SCL_PIN PC5 // SCL (Clock line)
 
 // I2C clock frequency
+#ifndef F_CPU
 #define F_CPU 16000000UL
+#endif
 #define I2C_FREQ 100000UL // 100 kHz
 
 // LCD I2C address and constants
@@ -60,6 +63,11 @@ static const uint8_t sevenseg_digits[10] = {
     0x7F, // 8: segments A B C D E F G
     0x6F  // 9: segments A B C D F G
 };
+
+// Forward declarations
+static void i2c_init(void);
+static void lcd_init(void);
+static void sevenseg_init(void);
 
 /**
  * @brief Initialize I2C/TWI hardware
