@@ -21,6 +21,11 @@ static volatile uint16_t distance_cm = 0;
 static volatile uint16_t icr1_start = 0;        // Rising edge timestamp
 static volatile uint16_t icr1_stop = 0;         // Falling edge timestamp
 static volatile uint8_t ping_measure_ready = 0; // Measurement complete flag
+static volatile uint8_t ping_timeout = 0;       // Timeout flag
+
+// Timeout constants
+#define PING_TIMEOUT_MS 33   // 33ms timeout for echo
+#define PING_MAX_DISTANCE 66 // Maximum valid distance (cm)
 
 // Frequency output variable
 static volatile uint16_t frequency_hz = 0; // Last computed frequency in Hz
@@ -80,6 +85,10 @@ void ping_trigger(void)
 {
     // Set PB1 high
     PORTB |= (1 << PORTB1);
+
+    // Clear flags
+    ping_measure_ready = 0;
+    ping_timeout = 0;
 
     // Save timestamp (placeholder - actual implementation depends on timer setup)
     timestamp = 0; // TODO: Replace with actual timer counter value
@@ -185,6 +194,30 @@ static uint16_t map_distance_to_freq(uint16_t dist_cm)
 uint16_t ping_read(void)
 {
     return distance_cm;
+}
+
+/**
+ * @brief Check if ping timeout occurred
+ *
+ * @return uint8_t 1 if timeout, 0 if normal
+ * Returns whether the last ping measurement timed out.
+ */
+uint8_t ping_is_timeout(void)
+{
+    return ping_timeout;
+}
+
+/**
+ * @brief Handle ping timeout
+ *
+ * Should be called from main loop if no echo received within timeout period.
+ * Sets distance to invalid value and sets timeout flag.
+ */
+void ping_handle_timeout(void)
+{
+    ping_timeout = 1;
+    distance_cm = PING_MAX_DISTANCE + 1; // Set to invalid distance
+    state = IDLE;                        // Reset state machine
 }
 
 /**
