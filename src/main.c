@@ -36,9 +36,9 @@ void adc_volume_callback(uint8_t adc_value)
 /**
  * @brief Send debug log via UART
  *
- * Prints current system state: distance, frequency, and volume.
+ * Prints current system state: distance, frequency, volume, and filter size.
  */
-static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume)
+static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume, uint8_t filter_size)
 {
   uart_puts("D:");
   uart_put_uint(distance);
@@ -46,7 +46,8 @@ static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume)
   uart_put_uint(frequency);
   uart_puts("Hz V:");
   uart_put_uint(volume);
-  uart_puts("%");
+  uart_puts("% Filter:");
+  uart_put_uint(filter_size);
   uart_newline();
 }
 
@@ -86,7 +87,7 @@ int main(void)
   display_clear();
 
   // Send startup message
-  uart_puts("=== Theremin Debug Started ===");
+  uart_puts("=== Theremin Started ===");
   uart_newline();
 
   // Debug logging counter
@@ -105,21 +106,23 @@ int main(void)
     while (timeout_counter < max_timeout_loops)
     {
       _delay_ms(5);
-      timeout_counter++;
 
-      // Check if measurement is complete (simplified check)
-      // In real implementation, check ping_measure_ready flag
-      if (timeout_counter >= 12) // ~60ms total wait
+      // Check if measurement is complete
+      if (ping_is_ready())
       {
+        // Process the measurement (calculate distance and frequency)
+        ping_process();
         break;
       }
+
+      timeout_counter++;
     }
 
-    // Check if timeout occurred (no echo within 33ms)
+    // Check if timeout occurred (no echo received)
     uint16_t distance = ping_read();
     uint8_t is_timeout = 0;
 
-    if (distance > 65 || timeout_counter <= 6) // distMax = 65cm
+    if (!ping_is_ready() && timeout_counter >= max_timeout_loops)
     {
       // Timeout occurred - no valid measurement
       ping_handle_timeout();
@@ -164,7 +167,7 @@ int main(void)
     log_counter++;
     if (log_counter >= 2)
     {
-      debug_log(filtered_distance, frequency, volume_percent);
+      debug_log(filtered_distance, frequency, volume_percent, filter_size);
 
       // Log timeout status
       if (is_timeout)

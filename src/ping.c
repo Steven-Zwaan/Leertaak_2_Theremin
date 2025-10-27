@@ -64,6 +64,12 @@ void ping_init(void)
     // Configure PB1 as output (trigger pin)
     DDRB |= (1 << DDB1);
 
+    // Configure PB0 as input (echo/ICP1 pin)
+    DDRB &= ~(1 << DDB0);
+
+    // No pull-up needed for ICP1, sensor will drive it
+    PORTB &= ~(1 << PORTB0);
+
     // Initialize trigger pin low
     PORTB &= ~(1 << PORTB1);
 
@@ -205,6 +211,55 @@ uint16_t ping_read(void)
 uint8_t ping_is_timeout(void)
 {
     return ping_timeout;
+}
+
+/**
+ * @brief Check if measurement is ready
+ *
+ * @return uint8_t 1 if measurement complete, 0 if still waiting
+ * Returns whether a new distance measurement is available from the ISR.
+ */
+uint8_t ping_is_ready(void)
+{
+    return ping_measure_ready;
+}
+
+/**
+ * @brief Process measurement
+ *
+ * Processes the captured timer values to calculate distance and frequency.
+ * Should be called after ping_is_ready() returns 1.
+ * Calculates the pulse width, converts to distance, and maps to frequency.
+ */
+void ping_process(void)
+{
+    if (ping_measure_ready)
+    {
+        // Calculate pulse width in timer ticks
+        uint16_t pulse_width_ticks;
+
+        if (icr1_stop >= icr1_start)
+        {
+            pulse_width_ticks = icr1_stop - icr1_start;
+        }
+        else
+        {
+            // Handle timer overflow
+            pulse_width_ticks = (0xFFFF - icr1_start) + icr1_stop + 1;
+        }
+
+        // Convert to distance
+        distance_cm = ping_compute_distance(pulse_width_ticks);
+
+        // Map to frequency
+        frequency_hz = map_distance_to_freq(distance_cm);
+
+        // Clear the ready flag
+        ping_measure_ready = 0;
+
+        // Reset state to IDLE
+        state = IDLE;
+    }
 }
 
 /**

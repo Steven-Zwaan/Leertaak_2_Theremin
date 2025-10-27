@@ -1,6 +1,7 @@
 #include "adc.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <stddef.h>
 
 // Global variable to store the last ADC reading
 static volatile uint16_t adc_value = 0;

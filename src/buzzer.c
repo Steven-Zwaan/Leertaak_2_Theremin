@@ -6,7 +6,9 @@
 #define BUZZER_PIN PD3 // OC2B (Timer2 Channel B)
 
 // Timer0 frequency calculation constants
+#ifndef F_CPU
 #define F_CPU 16000000UL // 16MHz CPU clock
+#endif
 #define TIMER0_PRESCALER 256
 #define TIMER0_FREQ_CONSTANT (F_CPU / (2UL * TIMER0_PRESCALER)) // 31250 Hz
 

@@ -55,4 +55,12 @@ bool buttons_is_released(uint8_t button_id);
  */
 void buttons_isr_handler(void);
 
+/**
+ * @brief Test buttons and output to UART
+ *
+ * Reads raw button states and prints debug info via UART.
+ * Useful for testing button wiring and functionality.
+ */
+void buttons_test(void);
+
 #endif // BUTTONS_H
