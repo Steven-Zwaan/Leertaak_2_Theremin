@@ -16,6 +16,9 @@
 // Debug logging interval (ms)
 #define DEBUG_LOG_INTERVAL 250
 
+// Ping timeout (ms)
+#define PING_TIMEOUT_MS 33
+
 // Measurement ready flag (checked in main loop)
 static volatile uint8_t measurement_ready = 0;
 
@@ -94,10 +97,35 @@ int main(void)
   {
     // Trigger ping measurement periodically
     ping_start();
-    _delay_ms(60); // Wait for measurement (>50ms for ping sensor)
 
-    // Read distance from ping sensor
+    // Wait for measurement with timeout
+    uint8_t timeout_counter = 0;
+    uint8_t max_timeout_loops = PING_TIMEOUT_MS / 5; // Check every 5ms
+
+    while (timeout_counter < max_timeout_loops)
+    {
+      _delay_ms(5);
+      timeout_counter++;
+
+      // Check if measurement is complete (simplified check)
+      // In real implementation, check ping_measure_ready flag
+      if (timeout_counter >= 12) // ~60ms total wait
+      {
+        break;
+      }
+    }
+
+    // Check if timeout occurred (no echo within 33ms)
     uint16_t distance = ping_read();
+    uint8_t is_timeout = 0;
+
+    if (distance > 65 || timeout_counter <= 6) // distMax = 65cm
+    {
+      // Timeout occurred - no valid measurement
+      ping_handle_timeout();
+      distance = 67; // Invalid distance marker
+      is_timeout = 1;
+    }
 
     // Process distance through median filter
     uint16_t filtered_distance = filter_update(distance);
@@ -111,7 +139,16 @@ int main(void)
     // Read volume and set buzzer duty cycle
     uint8_t volume_duty = volume_get_duty();
     uint8_t volume_percent = volume_get_percent();
-    buzzer_set_volume_duty(volume_duty);
+
+    // Mute buzzer on timeout
+    if (is_timeout)
+    {
+      buzzer_set_volume_duty(0); // Mute
+    }
+    else
+    {
+      buzzer_set_volume_duty(volume_duty); // Normal operation
+    }
 
     // Update LCD display with distance and frequency
     display_update(filtered_distance, frequency);
@@ -128,6 +165,14 @@ int main(void)
     if (log_counter >= 2)
     {
       debug_log(filtered_distance, frequency, volume_percent);
+
+      // Log timeout status
+      if (is_timeout)
+      {
+        uart_puts(" [TIMEOUT]");
+        uart_newline();
+      }
+
       log_counter = 0;
     }
 

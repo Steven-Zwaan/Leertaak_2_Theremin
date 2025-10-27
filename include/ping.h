@@ -27,6 +27,22 @@ void ping_start(void);
 uint16_t ping_read(void);
 
 /**
+ * @brief Check if ping timeout occurred
+ *
+ * @return uint8_t 1 if timeout, 0 if normal
+ * Returns whether the last ping measurement timed out.
+ */
+uint8_t ping_is_timeout(void);
+
+/**
+ * @brief Handle ping timeout
+ *
+ * Should be called from main loop if no echo received within timeout period.
+ * Sets distance to invalid value and marks timeout condition.
+ */
+void ping_handle_timeout(void);
+
+/**
  * @brief Get the last computed frequency
  *
  * @return uint16_t Frequency in Hz (230-1400 Hz range)
