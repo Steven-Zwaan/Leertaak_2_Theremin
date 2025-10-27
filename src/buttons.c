@@ -208,3 +208,30 @@ ISR(PCINT2_vect)
         }
     }
 }
+
+/**
+ * @brief Test buttons and output to UART
+ *
+ * Reads raw button states and prints debug info via UART.
+ * Useful for testing button wiring and functionality.
+ */
+void buttons_test(void)
+{
+    // Note: This requires uart.h to be included
+    // Read raw button states (active LOW - 0 when pressed)
+    uint8_t btn0 = (PIND & (1 << BUTTON_0_PIN)) ? 0 : 1;
+    uint8_t btn1 = (PIND & (1 << BUTTON_1_PIN)) ? 0 : 1;
+
+    if (btn0 || btn1)
+    {
+        // Only output if at least one button is pressed
+        extern void uart_puts(const char *str);
+        extern void uart_newline(void);
+
+        uart_puts("BTN0:");
+        uart_puts(btn0 ? "PRESSED " : "RELEASED ");
+        uart_puts("BTN1:");
+        uart_puts(btn1 ? "PRESSED" : "RELEASED");
+        uart_newline();
+    }
+}

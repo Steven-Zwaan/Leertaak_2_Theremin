@@ -4,6 +4,7 @@
 #include <util/delay.h>
 #include <string.h>
 #include <stdio.h>
+#include "uart.h" // For debug output in I2C scanner
 
 // I2C/TWI pin definitions
 #define I2C_SDA_PIN PC4 // SDA (Data line)
@@ -46,22 +47,30 @@
 #define LCD_ENTRY_LEFT 0x02
 #define LCD_ENTRY_SHIFT_DECREMENT 0x00
 
-// 7-segment display I2C address (PCF8574/PCF8575 or similar port expander)
-#define SEVENSEG_I2C_ADDRESS 0x20 // Default address for PCF8574
+// 7-segment display I2C address (PCF8574 port expander on Arduino GameShield)
+// Based on test code: 7-segment uses PCF8574 at 0x21
+// IR LED uses PCF8574AN at 0x39
+#define SEVENSEG_I2C_ADDRESS 0x21 // PCF8574 on GameShield
+
+// Set to 1 for common anode display, 0 for common cathode
+// GameShield uses common ANODE (writing 0 = segment ON, 1 = segment OFF)
+#define SEVENSEG_COMMON_ANODE 1
 
 // 7-segment digit patterns for common cathode (0-9)
-// Bit mapping: DP G F E D C B A
+// GameShield pin mapping: P0=A, P1=B, P2=C, P3=D, P4=E, P5=F, P6=G, P7=DP
+// Bit order: 7-DP 6-G 5-F 4-E 3-D 2-C 1-B 0-A
+// For common cathode: 1 = segment ON, 0 = segment OFF
 static const uint8_t sevenseg_digits[10] = {
-    0x3F, // 0: segments A B C D E F
-    0x06, // 1: segments B C
-    0x5B, // 2: segments A B D E G
-    0x4F, // 3: segments A B C D G
-    0x66, // 4: segments B C F G
-    0x6D, // 5: segments A C D F G
-    0x7D, // 6: segments A C D E F G
-    0x07, // 7: segments A B C
-    0x7F, // 8: segments A B C D E F G
-    0x6F  // 9: segments A B C D F G
+    0x3F, // 0: A B C D E F    (segments: 0011 1111)
+    0x06, // 1: B C            (segments: 0000 0110)
+    0x5B, // 2: A B D E G      (segments: 0101 1011)
+    0x4F, // 3: A B C D G      (segments: 0100 1111)
+    0x66, // 4: B C F G        (segments: 0110 0110)
+    0x6D, // 5: A C D F G      (segments: 0110 1101)
+    0x7D, // 6: A C D E F G    (segments: 0111 1101)
+    0x07, // 7: A B C          (segments: 0000 0111)
+    0x7F, // 8: A B C D E F G  (segments: 0111 1111)
+    0x6F  // 9: A B C D F G    (segments: 0110 1111)
 };
 
 // Forward declarations
@@ -330,12 +339,15 @@ void display_isr_handler(void)
  * @brief Initialize 7-segment display port expander
  *
  * Sets up the I2C port expander for 7-segment display.
- * Clears the display initially.
+ * Clears the display initially (all segments off).
  */
 static void sevenseg_init(void)
 {
-    // Clear display (all segments off)
-    i2c_transmit(SEVENSEG_I2C_ADDRESS, 0x00);
+    // Add delay to let PCF8574 stabilize
+    _delay_ms(50);
+
+    // Clear display
+    sevenseg_display(0);
 }
 
 /**
@@ -354,8 +366,16 @@ void sevenseg_display(uint8_t value)
         value = 0;
     }
 
+    // Get segment pattern
+    uint8_t pattern = sevenseg_digits[value];
+
+// Invert pattern if using common anode display
+#if SEVENSEG_COMMON_ANODE
+    pattern = ~pattern;
+#endif
+
     // Send segment pattern to port expander
-    i2c_transmit(SEVENSEG_I2C_ADDRESS, sevenseg_digits[value]);
+    i2c_transmit(SEVENSEG_I2C_ADDRESS, pattern);
 }
 
 /**

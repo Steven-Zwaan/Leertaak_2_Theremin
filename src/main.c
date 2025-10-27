@@ -86,7 +86,7 @@ int main(void)
   display_clear();
 
   // Send startup message
-  uart_puts("=== Theremin Debug Started ===");
+  uart_puts("=== Theremin Started ===");
   uart_newline();
 
   // Debug logging counter
@@ -105,21 +105,23 @@ int main(void)
     while (timeout_counter < max_timeout_loops)
     {
       _delay_ms(5);
-      timeout_counter++;
 
-      // Check if measurement is complete (simplified check)
-      // In real implementation, check ping_measure_ready flag
-      if (timeout_counter >= 12) // ~60ms total wait
+      // Check if measurement is complete
+      if (ping_is_ready())
       {
+        // Process the measurement (calculate distance and frequency)
+        ping_process();
         break;
       }
+
+      timeout_counter++;
     }
 
-    // Check if timeout occurred (no echo within 33ms)
+    // Check if timeout occurred (no echo received)
     uint16_t distance = ping_read();
     uint8_t is_timeout = 0;
 
-    if (distance > 65 || timeout_counter <= 6) // distMax = 65cm
+    if (!ping_is_ready() && timeout_counter >= max_timeout_loops)
     {
       // Timeout occurred - no valid measurement
       ping_handle_timeout();

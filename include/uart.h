@@ -33,6 +33,14 @@ void uart_puts(const char *str);
 void uart_put_uint(uint16_t value);
 
 /**
+ * @brief Send a hex value via UART
+ *
+ * @param value 8-bit value to send as hex (e.g., 0x2A)
+ * Outputs 2-digit hexadecimal representation.
+ */
+void uart_put_hex(uint8_t value);
+
+/**
  * @brief Send newline (CRLF) via UART
  */
 void uart_newline(void);

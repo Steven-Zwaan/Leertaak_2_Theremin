@@ -95,3 +95,16 @@ void uart_newline(void)
     uart_putc('\r');
     uart_putc('\n');
 }
+
+/**
+ * @brief Send a hex value via UART
+ *
+ * @param value 8-bit value to send as hex
+ * Outputs 2-digit hexadecimal representation (e.g., 0x2A -> "2A").
+ */
+void uart_put_hex(uint8_t value)
+{
+    const char hex_chars[] = "0123456789ABCDEF";
+    uart_putc(hex_chars[(value >> 4) & 0x0F]); // High nibble
+    uart_putc(hex_chars[value & 0x0F]);        // Low nibble
+}

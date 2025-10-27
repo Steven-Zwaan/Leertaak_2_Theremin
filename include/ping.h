@@ -35,6 +35,22 @@ uint16_t ping_read(void);
 uint8_t ping_is_timeout(void);
 
 /**
+ * @brief Check if measurement is ready
+ *
+ * @return uint8_t 1 if measurement complete, 0 if still waiting
+ * Returns whether a new distance measurement is available.
+ */
+uint8_t ping_is_ready(void);
+
+/**
+ * @brief Process measurement
+ *
+ * Processes the captured timer values to calculate distance and frequency.
+ * Should be called after ping_is_ready() returns 1.
+ */
+void ping_process(void);
+
+/**
  * @brief Handle ping timeout
  *
  * Should be called from main loop if no echo received within timeout period.
