@@ -36,9 +36,9 @@ void adc_volume_callback(uint8_t adc_value)
 /**
  * @brief Send debug log via UART
  *
- * Prints current system state: distance, frequency, and volume.
+ * Prints current system state: distance, frequency, volume, and filter size.
  */
-static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume)
+static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume, uint8_t filter_size)
 {
   uart_puts("D:");
   uart_put_uint(distance);
@@ -46,7 +46,8 @@ static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume)
   uart_put_uint(frequency);
   uart_puts("Hz V:");
   uart_put_uint(volume);
-  uart_puts("%");
+  uart_puts("% Filter:");
+  uart_put_uint(filter_size);
   uart_newline();
 }
 
@@ -166,7 +167,7 @@ int main(void)
     log_counter++;
     if (log_counter >= 2)
     {
-      debug_log(filtered_distance, frequency, volume_percent);
+      debug_log(filtered_distance, frequency, volume_percent, filter_size);
 
       // Log timeout status
       if (is_timeout)

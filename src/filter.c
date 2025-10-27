@@ -21,7 +21,7 @@ typedef struct
 // Filter buffer and state
 static filter_item filter_buffer[MAX_FILTER_SIZE];
 static uint8_t current_size = 0;
-static uint8_t max_size = MAX_FILTER_SIZE; // Runtime configurable max size
+static uint8_t max_size = 5; // Runtime configurable max size (default to 5, range 1-9)
 
 /**
  * @brief Initialize the filter
@@ -31,6 +31,9 @@ static uint8_t max_size = MAX_FILTER_SIZE; // Runtime configurable max size
  */
 void filter_init(void)
 {
+    // Set default filter size to 5 (middle of 1-9 range)
+    max_size = 5;
+
     // Reset current size
     current_size = 0;
 
@@ -168,20 +171,20 @@ uint16_t filter_read(void)
  *
  * Sets the runtime configurable maximum size of the filter buffer.
  * If the new size is smaller than current_size, removes the oldest items.
- * Size is clamped to valid range [1, MAX_FILTER_SIZE].
+ * Size is clamped to valid range [1, 9] for 7-segment display compatibility.
  *
- * @param n The desired maximum filter size (1-15)
+ * @param n The desired maximum filter size (1-9)
  */
 void filter_set_size(uint8_t n)
 {
-    // Clamp to valid bounds [1, MAX_FILTER_SIZE]
+    // Clamp to valid bounds [1, 9] for 7-segment display
     if (n < 1)
     {
         n = 1;
     }
-    if (n > MAX_FILTER_SIZE)
+    if (n > 9)
     {
-        n = MAX_FILTER_SIZE;
+        n = 9;
     }
 
     max_size = n;

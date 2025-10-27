@@ -16,10 +16,9 @@ static volatile uint8_t button_state = 0;
 static volatile uint8_t button_pressed = 0;
 static volatile uint8_t button_released = 0;
 
-// Debounce timing variables (using millis approximation)
-static volatile uint32_t last_interrupt_time_button0 = 0;
-static volatile uint32_t last_interrupt_time_button1 = 0;
-static volatile uint32_t millis_counter = 0;
+// Previous button states for edge detection
+static volatile uint8_t prev_button0_state = 0;
+static volatile uint8_t prev_button1_state = 0;
 
 /**
  * @brief Initialize button inputs
@@ -138,74 +137,77 @@ void buttons_isr_handler(void)
 }
 
 /**
- * @brief Get milliseconds counter
- *
- * Simple millisecond counter approximation.
- * Note: This is a simplified version. For production, use a proper timer-based millis().
- *
- * @return uint32_t Approximate milliseconds since start
- */
-static uint32_t get_millis(void)
-{
-    // Simplified: increment counter (in real implementation, use timer ISR)
-    // For now, we'll use a basic approximation
-    return millis_counter++;
-}
-
-/**
  * @brief Pin Change Interrupt ISR for PCINT2 (Port D)
  *
- * Detects pin changes on PD4 and PD5, implements debouncing,
- * and adjusts filter size accordingly.
+ * Detects pin changes on PD4 and PD5 with edge detection.
+ * Uses simple state tracking to detect button press events.
  * - PD4 (Button 0): Decrease filter size
  * - PD5 (Button 1): Increase filter size
  */
 ISR(PCINT2_vect)
 {
-    uint32_t current_time = get_millis();
-
     // Read current pin states (LOW = pressed due to pull-up)
-    uint8_t pd4_pressed = !(PIND & (1 << BUTTON_0_PIN));
-    uint8_t pd5_pressed = !(PIND & (1 << BUTTON_1_PIN));
+    uint8_t button0_current = !(PIND & (1 << BUTTON_0_PIN));
+    uint8_t button1_current = !(PIND & (1 << BUTTON_1_PIN));
 
-    // Check PD4 (Button 0) - Decrease filter size
-    if (pd4_pressed)
+    // Check Button 0 (PD4) - Decrease filter size
+    // Detect falling edge (transition from released to pressed)
+    if (button0_current && !prev_button0_state)
     {
-        // Debounce check: only process if enough time has passed
-        if ((current_time - last_interrupt_time_button0) >= DEBOUNCE_TIME_MS)
+        // Button press detected
+        prev_button0_state = 1;
+        button_pressed |= (1 << 0);
+
+        // Decrease filter size (minimum 1)
+        uint8_t current_size = filter_get_size();
+        if (current_size > 1)
         {
-            last_interrupt_time_button0 = current_time;
+            filter_set_size(current_size - 1);
 
-            // Decrease filter size
-            uint8_t current_size = filter_get_size();
-            if (current_size > 1)
-            {
-                filter_set_size(current_size - 1);
-            }
-
-            // Set pressed flag
-            button_pressed |= (1 << 0);
+            // Log button press and new filter size via UART
+            extern void uart_puts(const char *str);
+            extern void uart_put_uint(uint16_t value);
+            extern void uart_newline(void);
+            uart_puts("[BTN0] Filter size decreased to ");
+            uart_put_uint(current_size - 1);
+            uart_newline();
         }
     }
-
-    // Check PD5 (Button 1) - Increase filter size
-    if (pd5_pressed)
+    else if (!button0_current && prev_button0_state)
     {
-        // Debounce check: only process if enough time has passed
-        if ((current_time - last_interrupt_time_button1) >= DEBOUNCE_TIME_MS)
+        // Button released
+        prev_button0_state = 0;
+        button_released |= (1 << 0);
+    }
+
+    // Check Button 1 (PD5) - Increase filter size
+    // Detect falling edge (transition from released to pressed)
+    if (button1_current && !prev_button1_state)
+    {
+        // Button press detected
+        prev_button1_state = 1;
+        button_pressed |= (1 << 1);
+
+        // Increase filter size (maximum 9)
+        uint8_t current_size = filter_get_size();
+        if (current_size < 9)
         {
-            last_interrupt_time_button1 = current_time;
+            filter_set_size(current_size + 1);
 
-            // Increase filter size
-            uint8_t current_size = filter_get_size();
-            if (current_size < 15)
-            {
-                filter_set_size(current_size + 1);
-            }
-
-            // Set pressed flag
-            button_pressed |= (1 << 1);
+            // Log button press and new filter size via UART
+            extern void uart_puts(const char *str);
+            extern void uart_put_uint(uint16_t value);
+            extern void uart_newline(void);
+            uart_puts("[BTN1] Filter size increased to ");
+            uart_put_uint(current_size + 1);
+            uart_newline();
         }
+    }
+    else if (!button1_current && prev_button1_state)
+    {
+        // Button released
+        prev_button1_state = 0;
+        button_released |= (1 << 1);
     }
 }
 
