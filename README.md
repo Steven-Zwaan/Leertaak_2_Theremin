@@ -252,26 +252,104 @@ ADC (Volume) → Volume Module → PWM Duty ← Buzzer ← Frequency
 1. Power on the device
 2. Place hand near ultrasonic sensor (5-65 cm range)
 3. Adjust volume potentiometer
-4. Use buttons to change filter size (1-15)
-5. Monitor LCD for distance and frequency
-6. Monitor 7-segment for filter size
+4. Use buttons to change filter size (1-9)
+5. Monitor LCD, 7-segment display, and serial output for real-time data
 
-### Serial Debug Output
+### Controlling the Theremin
 
-Connect serial monitor at **9600 baud**:
+#### Changing Frequency
+
+The frequency is controlled by the **distance** between your hand and the ultrasonic sensor:
+
+-   **Close distance (5 cm)**: Higher frequency (~1400 Hz)
+-   **Far distance (65 cm)**: Lower frequency (~230 Hz)
+-   **Linear mapping**: Distance is linearly mapped to frequency
+-   Move your hand closer or farther from the sensor to change the pitch
+-   Valid range: 5-65 cm (measurements outside this range will timeout)
+
+#### Adjusting Volume
+
+Volume is controlled by a **potentiometer** connected to ADC0 (PC0):
+
+-   **Turn potentiometer clockwise**: Increase volume (0-100%)
+-   **Turn potentiometer counterclockwise**: Decrease volume
+-   **8-bit resolution**: 256 volume levels
+-   Volume affects the PWM duty cycle of the buzzer output
+-   Real-time volume adjustment without interrupting the tone
+
+#### Changing Filter Size
+
+The median filter size can be adjusted using **two buttons**:
+
+-   **Button 0 (PD4)**: Decrease filter size (minimum: 1 sample)
+-   **Button 1 (PD5)**: Increase filter size (maximum: 9 samples)
+-   **Debounce protection**: 50ms debounce prevents accidental multiple presses
+-   **Effect**: Larger filter sizes provide smoother frequency transitions but slower response
+-   **Recommendation**: Use filter size 5-7 for optimal noise reduction
+
+### Reading System Values
+
+The theremin provides real-time feedback through three output interfaces:
+
+#### 7-Segment Display
+
+The 7-segment display shows the **current filter size**:
+
+-   **Display location**: I2C address 0x20 (PCF8574 port expander)
+-   **Range**: 1-9 (single digit)
+-   **Updates**: Immediately when filter size is changed via buttons
+-   **Example**: Display shows "5" when filter is set to 5 samples
+
+#### LCD Display (2x16)
+
+The LCD shows **distance and frequency** on two lines:
+
+-   **Display location**: I2C address 0x27 (PCF8574 LCD backpack)
+-   **Line 1**: Distance measurement
+    -   Format: `Dist: XX cm` (e.g., "Dist: 45 cm")
+    -   Updates continuously based on sensor readings
+    -   Shows "TIMEOUT" if no valid measurement
+-   **Line 2**: Frequency output
+    -   Format: `Freq: XXXX Hz` (e.g., "Freq: 440 Hz")
+    -   Calculated from filtered distance measurement
+    -   Updates in real-time as you move your hand
+-   **Refresh rate**: Updated every measurement cycle (~30ms)
+
+#### Serial Monitor (UART)
+
+Connect a serial monitor at **9600 baud** to view detailed debug information:
 
 ```
 === Theremin Debug Started ===
 D:45cm F:440Hz V:75% FILTER: 5
 D:23cm F:612Hz V:67% FILTER: 5
 D:67cm F:230Hz V:0% [TIMEOUT]
+D:34cm F:589Hz V:100% FILTER: 7
 ```
 
--   **D**: Distance in centimeters
--   **F**: Frequency in Hertz
--   **V**: Volume percentage
--   **[TIMEOUT]**: No valid measurement (buzzer muted)
--   **FILTER**: The current filter value
+**Serial output format:**
+
+-   **D:XXcm** - Distance in centimeters from ultrasonic sensor
+-   **F:XXXHz** - Calculated frequency in Hertz
+-   **V:XX%** - Volume percentage (0-100%)
+-   **FILTER: X** - Current median filter size (1-9)
+-   **[TIMEOUT]** - Indicates no valid measurement (buzzer muted)
+
+**To monitor serial output:**
+
+```bash
+# Using PlatformIO
+pio device monitor --baud 9600
+
+# Using Arduino IDE Serial Monitor
+# Set to 9600 baud
+
+# Using screen (Linux/macOS)
+screen /dev/ttyUSB0 9600
+
+# Using PuTTY (Windows)
+# Set COM port and 9600 baud
+```
 
 ### Button Functions
 
