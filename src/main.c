@@ -8,9 +8,13 @@
 #include "buzzer.h"
 #include "display.h"
 #include "buttons.h"
+#include "uart.h"
 
 // ADC channel for volume control
 #define VOLUME_ADC_CHANNEL 0
+
+// Debug logging interval (ms)
+#define DEBUG_LOG_INTERVAL 250
 
 // Measurement ready flag (checked in main loop)
 static volatile uint8_t measurement_ready = 0;
@@ -24,6 +28,23 @@ static volatile uint8_t measurement_ready = 0;
 void adc_volume_callback(uint8_t adc_value)
 {
   volume_set_from_adc(adc_value);
+}
+
+/**
+ * @brief Send debug log via UART
+ *
+ * Prints current system state: distance, frequency, and volume.
+ */
+static void debug_log(uint16_t distance, uint16_t frequency, uint8_t volume)
+{
+  uart_puts("D:");
+  uart_put_uint(distance);
+  uart_puts("cm F:");
+  uart_put_uint(frequency);
+  uart_puts("Hz V:");
+  uart_put_uint(volume);
+  uart_puts("%");
+  uart_newline();
 }
 
 /**
@@ -43,6 +64,7 @@ static uint8_t check_ping_ready(void)
 int main(void)
 {
   // Initialize all modules
+  uart_init(9600); // Initialize UART at 9600 baud
   adc_init();
   ping_init();
   filter_init();
@@ -59,6 +81,13 @@ int main(void)
 
   // Initialize display
   display_clear();
+
+  // Send startup message
+  uart_puts("=== Theremin Debug Started ===");
+  uart_newline();
+
+  // Debug logging counter
+  uint8_t log_counter = 0;
 
   // Main control loop
   while (1)
@@ -81,6 +110,7 @@ int main(void)
 
     // Read volume and set buzzer duty cycle
     uint8_t volume_duty = volume_get_duty();
+    uint8_t volume_percent = volume_get_percent();
     buzzer_set_volume_duty(volume_duty);
 
     // Update LCD display with distance and frequency
@@ -92,6 +122,14 @@ int main(void)
 
     // Start ADC conversion for volume control
     adc_start(VOLUME_ADC_CHANNEL);
+
+    // Debug logging every ~250ms (approx every 2 loop iterations)
+    log_counter++;
+    if (log_counter >= 2)
+    {
+      debug_log(filtered_distance, frequency, volume_percent);
+      log_counter = 0;
+    }
 
     // Small delay to prevent overwhelming the displays
     _delay_ms(50);
