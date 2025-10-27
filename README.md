@@ -129,6 +129,96 @@ avrdude -c usbasp -p atmega328p \
   -U efuse:w:0xFF:m
 ```
 
+## Unit Testing
+
+### Host-Side Testing
+
+The project includes unit tests that run on your development machine without hardware, testing the filter logic and distance-to-frequency mapping algorithms.
+
+#### Test Files
+
+-   `test/filter_test.c` - Tests median filter with 14 test cases
+-   `test/mapping_test.c` - Tests distance-to-frequency mapping with 16 test cases
+
+#### Run Tests with PlatformIO
+
+```bash
+# Run all tests on native platform
+pio test -e native
+
+# Run specific test
+pio test -e native -f filter_test
+pio test -e native -f mapping_test
+```
+
+#### Run Tests with Make
+
+**Linux/macOS:**
+
+```bash
+# Download Unity framework (first time only)
+make unity
+
+# Build and run all tests
+make test
+
+# Clean build artifacts
+make clean
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# Download Unity framework (first time only)
+make -f Makefile.win unity
+
+# Build and run all tests
+make -f Makefile.win test
+
+# Clean build artifacts
+make -f Makefile.win clean
+```
+
+#### Manual Compilation
+
+**Prerequisites:**
+
+-   GCC compiler (MinGW on Windows)
+-   Unity framework: https://github.com/ThrowTheSwitch/Unity
+
+```bash
+# Compile filter test
+gcc -std=c11 -Wall -Wextra -I./include -I./unity/src \
+  -o filter_test test/filter_test.c unity/src/unity.c -lm
+
+# Compile mapping test
+gcc -std=c11 -Wall -Wextra -I./include -I./unity/src \
+  -o mapping_test test/mapping_test.c unity/src/unity.c -lm
+
+# Run tests
+./filter_test
+./mapping_test
+```
+
+#### Test Coverage
+
+**Filter Tests:**
+
+-   Initialization and single value
+-   Median calculation (odd/even count)
+-   Outlier rejection
+-   Buffer overflow handling
+-   Age-based rotation
+-   Noise reduction and spike rejection
+
+**Mapping Tests:**
+
+-   Boundary conditions (min/max distance)
+-   Linearity verification
+-   Out-of-range handling
+-   Musical note coverage
+-   Overflow protection
+
 ## Module Overview
 
 ### Core Modules
@@ -272,7 +362,12 @@ Theremin/
 │   ├── ping.c
 │   ├── uart.c
 │   └── volume.c
+├── test/              # Unit tests (host-side)
+│   ├── filter_test.c
+│   └── mapping_test.c
 ├── platformio.ini     # PlatformIO configuration
+├── Makefile           # Unix/macOS test build
+├── Makefile.win       # Windows test build
 └── README.md          # This file
 ```
 
@@ -290,3 +385,4 @@ Educational project for microcontroller course at Windesheim.
 -   **v1.0** - Initial integration with all modules functional
 -   **v1.1** - Added timeout handling and safety features
 -   **v1.2** - Added UART debug logging
+-   **v1.3** - Added host-side unit tests with Unity framework

@@ -1,0 +1,54 @@
+# Makefile for Windows PowerShell/CMD
+# Requires Unity framework and GCC (MinGW)
+
+CC = gcc
+CFLAGS = -std=c11 -Wall -Wextra -I.\include -I.\unity\src
+LDFLAGS = -lm
+
+# Unity framework files
+UNITY_SRC = unity\src\unity.c
+UNITY_INC = unity\src
+
+# Test executables
+FILTER_TEST = filter_test.exe
+MAPPING_TEST = mapping_test.exe
+
+.PHONY: all clean test unity help
+
+all: $(FILTER_TEST) $(MAPPING_TEST)
+
+# Filter test
+$(FILTER_TEST): test\filter_test.c $(UNITY_SRC)
+	$(CC) $(CFLAGS) -I$(UNITY_INC) -o $@ $^ $(LDFLAGS)
+
+# Mapping test
+$(MAPPING_TEST): test\mapping_test.c $(UNITY_SRC)
+	$(CC) $(CFLAGS) -I$(UNITY_INC) -o $@ $^ $(LDFLAGS)
+
+# Run all tests
+test: $(FILTER_TEST) $(MAPPING_TEST)
+	@echo Running filter tests...
+	@.\$(FILTER_TEST)
+	@echo.
+	@echo Running mapping tests...
+	@.\$(MAPPING_TEST)
+	@echo.
+	@echo All tests completed!
+
+# Clean build artifacts
+clean:
+	@if exist $(FILTER_TEST) del $(FILTER_TEST)
+	@if exist $(MAPPING_TEST) del $(MAPPING_TEST)
+	@if exist *.o del *.o
+
+# Install Unity framework
+unity:
+	@if not exist unity (git clone --depth 1 https://github.com/ThrowTheSwitch/Unity.git unity) else (echo Unity framework already installed)
+
+help:
+	@echo Available targets:
+	@echo   all        - Build all test executables
+	@echo   test       - Build and run all tests
+	@echo   clean      - Remove build artifacts
+	@echo   unity      - Download Unity framework
+	@echo   help       - Show this help message
