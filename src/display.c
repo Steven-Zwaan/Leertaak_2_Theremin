@@ -1,6 +1,8 @@
 #include "display.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
+#include <string.h>
 
 // I2C/TWI pin definitions
 #define I2C_SDA_PIN PC4 // SDA (Data line)
@@ -9,6 +11,37 @@
 // I2C clock frequency
 #define F_CPU 16000000UL
 #define I2C_FREQ 100000UL // 100 kHz
+
+// LCD I2C address and constants
+#define LCD_I2C_ADDRESS 0x27
+
+// LCD commands
+#define LCD_CMD_CLEAR 0x01
+#define LCD_CMD_HOME 0x02
+#define LCD_CMD_ENTRY_MODE 0x04
+#define LCD_CMD_DISPLAY_CONTROL 0x08
+#define LCD_CMD_FUNCTION_SET 0x20
+#define LCD_CMD_SET_DDRAM_ADDR 0x80
+
+// LCD control bits
+#define LCD_BACKLIGHT 0x08
+#define LCD_ENABLE 0x04
+#define LCD_READ_WRITE 0x02
+#define LCD_REGISTER_SELECT 0x01
+
+// LCD display control flags
+#define LCD_DISPLAY_ON 0x04
+#define LCD_CURSOR_OFF 0x00
+#define LCD_BLINK_OFF 0x00
+
+// LCD function set flags
+#define LCD_4BIT_MODE 0x00
+#define LCD_2_LINE 0x08
+#define LCD_5x8_DOTS 0x00
+
+// LCD entry mode flags
+#define LCD_ENTRY_LEFT 0x02
+#define LCD_ENTRY_SHIFT_DECREMENT 0x00
 
 /**
  * @brief Initialize I2C/TWI hardware
@@ -45,6 +78,154 @@ static void i2c_init(void)
 }
 
 /**
+ * @brief Blocking I2C transmit helper
+ *
+ * Sends data to I2C device with START, address, data, and STOP conditions.
+ *
+ * @param address I2C device address (7-bit)
+ * @param data Byte to transmit
+ * @return uint8_t 0 on success, non-zero on error
+ */
+static uint8_t i2c_transmit(uint8_t address, uint8_t data)
+{
+    // Send START condition
+    TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
+    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
+    
+    // Send device address with write bit (0)
+    TWDR = (address << 1);
+    TWCR = (1 << TWINT) | (1 << TWEN);
+    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
+    
+    // Send data byte
+    TWDR = data;
+    TWCR = (1 << TWINT) | (1 << TWEN);
+    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
+    
+    // Send STOP condition
+    TWCR = (1 << TWINT) | (1 << TWSTO) | (1 << TWEN);
+    
+    return 0;  // Success
+}
+
+/**
+ * @brief Send nibble (4 bits) to LCD via I2C
+ *
+ * @param nibble 4-bit data to send (in upper nibble)
+ * @param mode Control bits (RS, RW, Backlight)
+ */
+static void lcd_send_nibble(uint8_t nibble, uint8_t mode)
+{
+    uint8_t data = nibble | mode | LCD_BACKLIGHT;
+    
+    // Send with Enable high
+    i2c_transmit(LCD_I2C_ADDRESS, data | LCD_ENABLE);
+    _delay_us(1);
+    
+    // Send with Enable low (latch data)
+    i2c_transmit(LCD_I2C_ADDRESS, data & ~LCD_ENABLE);
+    _delay_us(50);
+}
+
+/**
+ * @brief Send byte to LCD in 4-bit mode
+ *
+ * @param byte Data byte to send
+ * @param mode Control bits (RS for command/data selection)
+ */
+static void lcd_send_byte(uint8_t byte, uint8_t mode)
+{
+    // Send upper nibble
+    lcd_send_nibble(byte & 0xF0, mode);
+    
+    // Send lower nibble
+    lcd_send_nibble((byte << 4) & 0xF0, mode);
+}
+
+/**
+ * @brief Send command to LCD
+ *
+ * @param cmd Command byte
+ */
+static void lcd_send_command(uint8_t cmd)
+{
+    lcd_send_byte(cmd, 0);  // RS = 0 for command
+    _delay_ms(2);
+}
+
+/**
+ * @brief Send data (character) to LCD
+ *
+ * @param data Character to display
+ */
+static void lcd_send_data(uint8_t data)
+{
+    lcd_send_byte(data, LCD_REGISTER_SELECT);  // RS = 1 for data
+}
+
+/**
+ * @brief Initialize LCD in 4-bit mode
+ *
+ * Initializes a 2x16 I2C LCD at address 0x27.
+ * Uses standard HD44780 initialization sequence for 4-bit mode.
+ */
+static void lcd_init(void)
+{
+    // Wait for LCD to power up
+    _delay_ms(50);
+    
+    // Initialize in 4-bit mode (special sequence)
+    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (initial)
+    _delay_ms(5);
+    
+    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (repeat)
+    _delay_ms(1);
+    
+    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (repeat)
+    _delay_ms(1);
+    
+    lcd_send_nibble(0x20, 0);  // Function set: 4-bit mode
+    _delay_ms(1);
+    
+    // Now in 4-bit mode, send full commands
+    lcd_send_command(LCD_CMD_FUNCTION_SET | LCD_4BIT_MODE | LCD_2_LINE | LCD_5x8_DOTS);
+    lcd_send_command(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON | LCD_CURSOR_OFF | LCD_BLINK_OFF);
+    lcd_send_command(LCD_CMD_CLEAR);
+    _delay_ms(2);
+    lcd_send_command(LCD_CMD_ENTRY_MODE | LCD_ENTRY_LEFT | LCD_ENTRY_SHIFT_DECREMENT);
+}
+
+/**
+ * @brief Write text to specific line on LCD
+ *
+ * @param row Line number (0 or 1 for 2x16 LCD)
+ * @param text Null-terminated string to display (max 16 characters)
+ */
+static void lcd_write_line(uint8_t row, const char *text)
+{
+    // Set cursor position (DDRAM address)
+    // Line 0: 0x00-0x0F, Line 1: 0x40-0x4F
+    uint8_t address = (row == 0) ? 0x00 : 0x40;
+    lcd_send_command(LCD_CMD_SET_DDRAM_ADDR | address);
+    
+    // Write characters (max 16)
+    uint8_t count = 0;
+    while (*text && count < 16)
+    {
+        lcd_send_data(*text);
+        text++;
+        count++;
+    }
+    
+    // Fill remaining positions with spaces
+    while (count < 16)
+    {
+        lcd_send_data(' ');
+        count++;
+    }
+}
+
+/**
  * @brief Initialize the display
  *
  * Configures the display hardware (LCD, LED, 7-segment, etc.).
@@ -54,9 +235,9 @@ void display_init(void)
 {
     // Initialize I2C/TWI hardware
     i2c_init();
-
-    // TODO: Add display-specific initialization
-    // (e.g., LCD initialization sequence, OLED setup)
+    
+    // Initialize LCD
+    lcd_init();
 }
 
 /**
@@ -77,8 +258,10 @@ void display_start(void)
  */
 void display_update(uint16_t value)
 {
-    // TODO: Implement display update logic
-    // Convert value to display format and send via I2C
+    // Convert value to string and display on line 1
+    char buffer[17];
+    snprintf(buffer, sizeof(buffer), "Value: %u", value);
+    lcd_write_line(1, buffer);
 }
 
 /**
@@ -88,7 +271,8 @@ void display_update(uint16_t value)
  */
 void display_clear(void)
 {
-    // TODO: Implement display clear command
+    lcd_send_command(LCD_CMD_CLEAR);
+    _delay_ms(2);
 }
 
 /**
