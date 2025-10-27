@@ -349,3 +349,21 @@ void sevenseg_display(uint8_t value)
     // Send segment pattern to port expander
     i2c_transmit(SEVENSEG_I2C_ADDRESS, sevenseg_digits[value]);
 }
+
+/**
+ * @brief Display filter size on 7-segment display
+ *
+ * Shows the current filter size on the 7-segment display.
+ * For values > 9, displays the last digit (ones place).
+ * For example: 15 displays as "5", 10 displays as "0".
+ *
+ * @param size Filter size to display (0-15 typical range)
+ */
+void display_filter_size(uint8_t size)
+{
+    // Extract last digit (ones place) using modulo 10
+    uint8_t digit = size % 10;
+
+    // Display the digit on 7-segment
+    sevenseg_display(digit);
+}

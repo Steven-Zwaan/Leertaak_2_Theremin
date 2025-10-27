@@ -53,4 +53,13 @@ void display_isr_handler(void);
  */
 void sevenseg_display(uint8_t value);
 
+/**
+ * @brief Display filter size on 7-segment display
+ *
+ * @param size Filter size to display (0-15)
+ * Shows the current filter size. For values > 9, displays the last digit.
+ * Example: 15 shows "5", 10 shows "0".
+ */
+void display_filter_size(uint8_t size);
+
 #endif // DISPLAY_H
