@@ -43,6 +43,24 @@
 #define LCD_ENTRY_LEFT 0x02
 #define LCD_ENTRY_SHIFT_DECREMENT 0x00
 
+// 7-segment display I2C address (PCF8574/PCF8575 or similar port expander)
+#define SEVENSEG_I2C_ADDRESS 0x20 // Default address for PCF8574
+
+// 7-segment digit patterns for common cathode (0-9)
+// Bit mapping: DP G F E D C B A
+static const uint8_t sevenseg_digits[10] = {
+    0x3F, // 0: segments A B C D E F
+    0x06, // 1: segments B C
+    0x5B, // 2: segments A B D E G
+    0x4F, // 3: segments A B C D G
+    0x66, // 4: segments B C F G
+    0x6D, // 5: segments A C D F G
+    0x7D, // 6: segments A C D E F G
+    0x07, // 7: segments A B C
+    0x7F, // 8: segments A B C D E F G
+    0x6F  // 9: segments A B C D F G
+};
+
 /**
  * @brief Initialize I2C/TWI hardware
  *
@@ -241,6 +259,9 @@ void display_init(void)
 
     // Initialize LCD
     lcd_init();
+
+    // Initialize 7-segment display
+    sevenseg_init();
 }
 
 /**
@@ -295,4 +316,36 @@ void display_clear(void)
 void display_isr_handler(void)
 {
     // TODO: Implement if needed for multiplexed displays
+}
+
+/**
+ * @brief Initialize 7-segment display port expander
+ *
+ * Sets up the I2C port expander for 7-segment display.
+ * Clears the display initially.
+ */
+static void sevenseg_init(void)
+{
+    // Clear display (all segments off)
+    i2c_transmit(SEVENSEG_I2C_ADDRESS, 0x00);
+}
+
+/**
+ * @brief Display a digit on 7-segment display
+ *
+ * Sends the segment pattern for the specified digit to the I2C port expander.
+ * Only displays single digits 0-9. Values >= 10 will display 0.
+ *
+ * @param value Digit to display (0-9)
+ */
+void sevenseg_display(uint8_t value)
+{
+    // Clamp value to 0-9 range
+    if (value > 9)
+    {
+        value = 0;
+    }
+
+    // Send segment pattern to port expander
+    i2c_transmit(SEVENSEG_I2C_ADDRESS, sevenseg_digits[value]);
 }

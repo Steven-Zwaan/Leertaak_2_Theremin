@@ -44,4 +44,13 @@ void display_clear(void);
  */
 void display_isr_handler(void);
 
+/**
+ * @brief Display a digit on 7-segment display
+ *
+ * @param value Digit to display (0-9)
+ * Sends the segment pattern for the specified digit to the I2C port expander.
+ * Values > 9 will display 0.
+ */
+void sevenseg_display(uint8_t value);
+
 #endif // DISPLAY_H
