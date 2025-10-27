@@ -90,22 +90,25 @@ static uint8_t i2c_transmit(uint8_t address, uint8_t data)
 {
     // Send START condition
     TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
-    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
-    
+    while (!(TWCR & (1 << TWINT)))
+        ; // Wait for TWINT flag
+
     // Send device address with write bit (0)
     TWDR = (address << 1);
     TWCR = (1 << TWINT) | (1 << TWEN);
-    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
-    
+    while (!(TWCR & (1 << TWINT)))
+        ; // Wait for TWINT flag
+
     // Send data byte
     TWDR = data;
     TWCR = (1 << TWINT) | (1 << TWEN);
-    while (!(TWCR & (1 << TWINT)));  // Wait for TWINT flag
-    
+    while (!(TWCR & (1 << TWINT)))
+        ; // Wait for TWINT flag
+
     // Send STOP condition
     TWCR = (1 << TWINT) | (1 << TWSTO) | (1 << TWEN);
-    
-    return 0;  // Success
+
+    return 0; // Success
 }
 
 /**
@@ -117,11 +120,11 @@ static uint8_t i2c_transmit(uint8_t address, uint8_t data)
 static void lcd_send_nibble(uint8_t nibble, uint8_t mode)
 {
     uint8_t data = nibble | mode | LCD_BACKLIGHT;
-    
+
     // Send with Enable high
     i2c_transmit(LCD_I2C_ADDRESS, data | LCD_ENABLE);
     _delay_us(1);
-    
+
     // Send with Enable low (latch data)
     i2c_transmit(LCD_I2C_ADDRESS, data & ~LCD_ENABLE);
     _delay_us(50);
@@ -137,7 +140,7 @@ static void lcd_send_byte(uint8_t byte, uint8_t mode)
 {
     // Send upper nibble
     lcd_send_nibble(byte & 0xF0, mode);
-    
+
     // Send lower nibble
     lcd_send_nibble((byte << 4) & 0xF0, mode);
 }
@@ -149,7 +152,7 @@ static void lcd_send_byte(uint8_t byte, uint8_t mode)
  */
 static void lcd_send_command(uint8_t cmd)
 {
-    lcd_send_byte(cmd, 0);  // RS = 0 for command
+    lcd_send_byte(cmd, 0); // RS = 0 for command
     _delay_ms(2);
 }
 
@@ -160,7 +163,7 @@ static void lcd_send_command(uint8_t cmd)
  */
 static void lcd_send_data(uint8_t data)
 {
-    lcd_send_byte(data, LCD_REGISTER_SELECT);  // RS = 1 for data
+    lcd_send_byte(data, LCD_REGISTER_SELECT); // RS = 1 for data
 }
 
 /**
@@ -173,20 +176,20 @@ static void lcd_init(void)
 {
     // Wait for LCD to power up
     _delay_ms(50);
-    
+
     // Initialize in 4-bit mode (special sequence)
-    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (initial)
+    lcd_send_nibble(0x30, 0); // Function set: 8-bit mode (initial)
     _delay_ms(5);
-    
-    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (repeat)
+
+    lcd_send_nibble(0x30, 0); // Function set: 8-bit mode (repeat)
     _delay_ms(1);
-    
-    lcd_send_nibble(0x30, 0);  // Function set: 8-bit mode (repeat)
+
+    lcd_send_nibble(0x30, 0); // Function set: 8-bit mode (repeat)
     _delay_ms(1);
-    
-    lcd_send_nibble(0x20, 0);  // Function set: 4-bit mode
+
+    lcd_send_nibble(0x20, 0); // Function set: 4-bit mode
     _delay_ms(1);
-    
+
     // Now in 4-bit mode, send full commands
     lcd_send_command(LCD_CMD_FUNCTION_SET | LCD_4BIT_MODE | LCD_2_LINE | LCD_5x8_DOTS);
     lcd_send_command(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON | LCD_CURSOR_OFF | LCD_BLINK_OFF);
@@ -207,7 +210,7 @@ static void lcd_write_line(uint8_t row, const char *text)
     // Line 0: 0x00-0x0F, Line 1: 0x40-0x4F
     uint8_t address = (row == 0) ? 0x00 : 0x40;
     lcd_send_command(LCD_CMD_SET_DDRAM_ADDR | address);
-    
+
     // Write characters (max 16)
     uint8_t count = 0;
     while (*text && count < 16)
@@ -216,7 +219,7 @@ static void lcd_write_line(uint8_t row, const char *text)
         text++;
         count++;
     }
-    
+
     // Fill remaining positions with spaces
     while (count < 16)
     {
@@ -235,7 +238,7 @@ void display_init(void)
 {
     // Initialize I2C/TWI hardware
     i2c_init();
-    
+
     // Initialize LCD
     lcd_init();
 }
@@ -253,14 +256,22 @@ void display_start(void)
 /**
  * @brief Update display with new data
  *
- * @param value Value to display (interpretation depends on display type)
- * Updates the display with the provided value.
+ * @param distance Distance in centimeters
+ * @param frequency Frequency in Hz
+ * Updates the display with distance and frequency information.
+ * Line 0: "Dist: xx cm"
+ * Line 1: "Freq: yyyy Hz"
  */
-void display_update(uint16_t value)
+void display_update(uint16_t distance, uint16_t frequency)
 {
-    // Convert value to string and display on line 1
     char buffer[17];
-    snprintf(buffer, sizeof(buffer), "Value: %u", value);
+
+    // Format and display distance on line 0
+    snprintf(buffer, sizeof(buffer), "Dist: %u cm", distance);
+    lcd_write_line(0, buffer);
+
+    // Format and display frequency on line 1
+    snprintf(buffer, sizeof(buffer), "Freq: %u Hz", frequency);
     lcd_write_line(1, buffer);
 }
 

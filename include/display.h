@@ -21,10 +21,13 @@ void display_start(void);
 /**
  * @brief Update display with new data
  *
- * @param value Value to display (interpretation depends on display type)
- * Updates the display with the provided value.
+ * @param distance Distance in centimeters
+ * @param frequency Frequency in Hz
+ * Updates the display with distance and frequency information.
+ * Line 0: "Dist: xx cm"
+ * Line 1: "Freq: yyyy Hz"
  */
-void display_update(uint16_t value);
+void display_update(uint16_t distance, uint16_t frequency);
 
 /**
  * @brief Clear the display
