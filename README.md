@@ -262,8 +262,8 @@ Connect serial monitor at **9600 baud**:
 
 ```
 === Theremin Debug Started ===
-D:45cm F:440Hz V:75%
-D:23cm F:612Hz V:67%
+D:45cm F:440Hz V:75% FILTER: 5
+D:23cm F:612Hz V:67% FILTER: 5
 D:67cm F:230Hz V:0% [TIMEOUT]
 ```
 
@@ -271,13 +271,14 @@ D:67cm F:230Hz V:0% [TIMEOUT]
 -   **F**: Frequency in Hertz
 -   **V**: Volume percentage
 -   **[TIMEOUT]**: No valid measurement (buzzer muted)
+-   **FILTER**: The current filter value
 
 ### Button Functions
 
 -   **Button 0 (PD4)**: Decrease filter size
 -   **Button 1 (PD5)**: Increase filter size
 -   Debounce time: 50ms
--   Range: 1-15 samples
+-   Range: 1-9 samples
 
 ## Configuration
 
@@ -293,11 +294,11 @@ const uint16_t distMax = 65; // Maximum distance (cm)
 
 ### Filter Size
 
-Default: 15 samples
+Default: 9 samples
 Adjust at runtime with buttons or in `src/filter.c`:
 
 ```c
-static uint8_t max_size = MAX_FILTER_SIZE;  // 1-15
+static uint8_t max_size = MAX_FILTER_SIZE;  // 1-9
 ```
 
 ### Timeout
