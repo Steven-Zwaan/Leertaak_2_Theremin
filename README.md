@@ -5,7 +5,7 @@ A digital theremin implementation using ATmega328P microcontroller with ultrason
 ## Features
 
 -   **Ultrasonic Distance Sensing**: HC-SR04/PING sensor with Timer1 input capture
--   **Median Filter**: Configurable filter size (1-15 samples) for noise reduction
+-   **Median Filter**: Configurable filter size (1-9 samples) for noise reduction
 -   **Frequency Mapping**: Linear distance-to-frequency mapping (230-1400 Hz)
 -   **PWM Tone Generation**: Dual-timer approach (Timer0 CTC + Timer2 PWM)
 -   **Volume Control**: ADC-based volume adjustment with 8-bit resolution
